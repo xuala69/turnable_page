@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## 1.0.3 - 2026-06-25
+- **Bug fix: Fixed Pdfrx.getCacheDirectory setter not found error**
+- **Feature removal: Removed PDF support and the package now only focuses on Page Animation**
+
+## 1.0.2 - 2026-06-22
+- **Bug fix: Fixed Pdfrx.getCacheDirectory setter not found error**
+
 ## 1.0.1 - 2025-09-30
 ### ✨ New Features
 - **FlipSettings Controls**: Added `hideLeftShadow` to individually disable the left page shadow in single-page mode.
