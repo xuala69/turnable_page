@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'كتاب ذكي - تطبيق تقليب الصفحات',
+      title: 'Turnable Page',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -40,17 +40,7 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
   void initState() {
     super.initState();
     _controller = PageFlipController();
-    _displayItemsFromMockApi.addAll([
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-    ]);
-
+    _displayItemsFromMockApi.addAll(["1", "2", "3", "4", "5", "6", "7", "8"]);
   }
 
   @override
@@ -68,10 +58,7 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
         children: [
           CircularProgressIndicator(color: Colors.pinkAccent),
           SizedBox(height: 20),
-          Text(
-            "تحميل بيانات واجهة برمجة التطبيقات الوهمية",
-            style: TextStyle(color: Colors.pinkAccent),
-          ),
+          Text("Loading Page...", style: TextStyle(color: Colors.pinkAccent)),
         ],
       ),
     );
@@ -99,7 +86,7 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
                 Icon(Icons.auto_stories, size: 80, color: Colors.white),
                 SizedBox(height: 20),
                 Text(
-                  'صفحة ${_displayItemsFromMockApi[index]}',
+                  'Test Page ${_displayItemsFromMockApi[index]}',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -108,7 +95,7 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
                 ),
                 SizedBox(height: 20),
                 Text(
-                  'اسحب لتقليب الصفحة',
+                  'Swipe to turn the page',
                   style: TextStyle(fontSize: 18, color: Colors.white70),
                 ),
                 SizedBox(height: 40),
@@ -118,14 +105,14 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'تم النقر على زر الصفحة ${_displayItemsFromMockApi[index]}',
+                          'Page ${_displayItemsFromMockApi[index]} button tapped',
                         ),
                         duration: Duration(seconds: 1),
                       ),
                     );
                   },
                   icon: Icon(Icons.touch_app),
-                  label: Text('اختبار النقر'),
+                  label: Text('Label'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor:
@@ -153,7 +140,7 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'اختبار الأنيميشن\nالصفحة الحالية: ${currentPage + 1}\nعدد التقليبات: $flipCount',
+                        'Animation Test\nCurrent Page: ${currentPage + 1}\nNumber of Flips: $flipCount',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     );

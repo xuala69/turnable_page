@@ -31,11 +31,12 @@ class RenderTurnableBook extends RenderBox
   static const double _minMoveThreshold = 10.0;
   bool get _needsWhitePage {
     if (settings.usePortrait) return false;
-    return settings.showCover ? false : childCount % 2 == 1;
+    return settings.showCover ? false : pageCount % 2 == 1;
   }
 
   FlipSettings settings;
   final PageFlip pageFlip;
+  int pageCount;
   late PageCollectionImpl collection;
   bool _initialized = false;
   BookOrientation? _orientation;
@@ -60,13 +61,19 @@ class RenderTurnableBook extends RenderBox
   bool _isDragging = false;
   model.Point? _initialTouchPoint;
 
-  RenderTurnableBook(this.settings, this.pageFlip) {
+  RenderTurnableBook(this.settings, this.pageFlip, this.pageCount) {
     pageFlip.render = this;
-    collection = PageCollectionImpl(pageFlip, this, 0);
+    collection = PageCollectionImpl(pageFlip, this, pageCount);
   }
 
-  void updateSettings(FlipSettings s) {
+  void updateSettings(FlipSettings s, int newPageCount) {
     settings = s;
+    if (newPageCount != pageCount) {
+      pageCount = newPageCount;
+      collection = PageCollectionImpl(pageFlip, this, pageCount);
+      _needsIndexRebuild = true;
+      _initialized = false;
+    }
     markNeedsLayout();
   }
 
@@ -141,7 +148,7 @@ class RenderTurnableBook extends RenderBox
       _assignPageIndices();
     }
     if (!_initialized) {
-      final totalPages = _needsWhitePage ? childCount + 1 : childCount;
+      final totalPages = _needsWhitePage ? pageCount + 1 : pageCount;
       collection = PageCollectionImpl(pageFlip, this, totalPages);
       collection.loadBookPages();
       collection.show(settings.startPageIndex);
@@ -159,8 +166,7 @@ class RenderTurnableBook extends RenderBox
 
   void _assignPageIndices() {
     _needsIndexRebuild = false;
-    final count = childCount;
-    final totalSlots = _needsWhitePage ? count + 1 : count;
+    final totalSlots = _needsWhitePage ? pageCount + 1 : pageCount;
     if (_indexedChildren.length != totalSlots) {
       _indexedChildren = List<RenderBox?>.filled(
         totalSlots,
@@ -168,22 +174,22 @@ class RenderTurnableBook extends RenderBox
         growable: false,
       );
     }
-    int index = 0;
     RenderBox? child = firstChild;
-    while (child != null && index < count) {
+    while (child != null) {
       final pd = child.parentData as TurnableParentData;
-      pd.pageIndex = index;
-      _indexedChildren[index] = child;
-      index++;
+      final index = pd.pageIndex;
+      if (index >= 0 && index < _indexedChildren.length) {
+        _indexedChildren[index] = child;
+      }
       child = pd.nextSibling;
     }
-    if (_needsWhitePage) {
-      _indexedChildren[count] = null;
+    if (_needsWhitePage && pageCount < _indexedChildren.length) {
+      _indexedChildren[pageCount] = null;
     }
   }
 
   RenderBox? _childByIndex(int index) {
-    if (_needsWhitePage && index == childCount) {
+    if (_needsWhitePage && index == pageCount) {
       return null;
     }
     if (!_needsIndexRebuild && index >= 0 && index < _indexedChildren.length) {
@@ -793,7 +799,7 @@ class RenderTurnableBook extends RenderBox
 
   @override
   bool hitTestSelf(Offset position) {
-    // Always participate in hit testing to detect gestures
+    // Always participate in hit testing to detect gestures.
     return true;
   }
 

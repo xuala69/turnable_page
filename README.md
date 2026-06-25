@@ -72,7 +72,7 @@ class MyBook extends StatelessWidget {
       body: Center(
         child: TurnablePage(
             pageCount: 6,
-            pageBuilder: (index, constraints) {
+            builder: (context, index, constraints) {
               return Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -99,40 +99,67 @@ Controller class for programmatic page manipulation.
 
 #### Methods
 
-- `nextPage()` - Turn to the next page (without animation)
-- `previousPage()` - Turn to the previous page (without animation)
-- `goToPage(int pageIndex)` - Jump to a specific page (without animation)
-- `flipNext([FlipCorner corner])` - Flip to next page with animation
-- `flipPrev([FlipCorner corner])` - Flip to previous page with animation
-- `flipToPage(int pageIndex, [FlipCorner corner])` - Flip to specific page with animation
+- `nextPage()` - Flip to the next page with animation.
+- `previousPage()` - Flip to the previous page with animation.
+- `goToPage(int pageIndex)` - Flip to a specific page with animation.
+- `goToFirstPage()` - Flip to the first page with animation.
+- `goToLastPage()` - Flip to the last page with animation.
 
 #### Properties
 
-- `currentPageIndex` - Get current page index (0-based)
-- `pageCount` - Get total number of pages
-- `hasNextPage` - Check if next page is available
-- `hasPreviousPage` - Check if previous page is available
-- `canFlipNext` - Check if can flip to next page
-- `canFlipPrev` - Check if can flip to previous page
+- `currentPageIndex` - Get current page index (0-based).
+- `pageCount` - Get total number of pages.
+- `hasNextPage` - Check if the next page is available.
+- `hasPreviousPage` - Check if the previous page is available.
 
-
-### Usage
+#### Usage
 
 ```dart
-PageFlipController _controller = PageFlipController;
+final controller = PageFlipController();
 
-_controller.previousPage();
-_controller.nextPage();
-_controller.goToPage(5);
-_controller.flipPrev();
-_controller.flipNext();
-_controller.flipToPage(5);
+TurnablePage(
+  controller: controller,
+  pageCount: 6,
+  builder: (context, index, constraints) {
+    return Center(child: Text('Page ${index + 1}'));
+  },
+);
 
-_controller.hasPreviousPage;
-_controller.hasNextPage;
+// Programmatic navigation
+controller.previousPage();
+controller.nextPage();
+controller.goToPage(5);
+controller.goToFirstPage();
+controller.goToLastPage();
 
+// Query state
+controller.hasPreviousPage;
+controller.hasNextPage;
 ```
 
+> Note: The controller is bound to the internal page renderer automatically when you pass it to `TurnablePage`. No additional initialization is required.
+
+## Public API
+
+### Main entry point
+
+- `TurnablePage` is the top-level widget for page-flip content.
+- `PageFlipController` enables programmatic flipping and state inspection.
+- `FlipSettings` configures visual behavior, animation timing, and gesture thresholds.
+- `PaperBoundaryDecoration` controls the page border style.
+
+### Builder behavior
+
+- `builder` is called only for active pages and nearby cached pages.
+- Pages may be rebuilt when they leave and later re-enter the active page window.
+- Use `ValueKey` or external state if you need stable identity for page content.
+
+### Controller lifecycle
+
+- Create `PageFlipController` before building `TurnablePage`.
+- Pass it to `TurnablePage.controller`.
+- The package binds the controller internally when the widget mounts.
+- The controller remains valid for the lifetime of the `TurnablePage` widget.
 
 ## Gesture Behavior
 
@@ -151,15 +178,18 @@ Removed flags: enableSmartGestures, disableFlipByClick, clickEventForward (behav
 #### Parameters
 
 - `controller` - Optional controller for programmatic page control
-- `itemBuilder` - Builder function that creates widget content for each page
-- `itemCount` - Total number of pages in the book
+- `builder` - Builder function that creates widget content for each page
+- `pageCount` - Total number of pages in the book
 - `onPageChanged` - Callback fired when page changes
 - `pageViewMode` - Display mode: single page or double page spread
-- `pixelRatio` - Rendering pixel ratio for quality
 - `autoResponseSize` - Whether to automatically adjust size to container
 - `aspectRatio` - Custom aspect ratio for the book
 - `paperBoundaryDecoration` - Visual style for page boundaries
 - `settings` - Detailed flip behavior configuration
+
+### Page builder lifecycle
+
+The `builder` is invoked for active pages only. The internal page cache keeps nearby pages alive while the current spread is visible and evicts pages when they fall outside the active window. This reduces memory cost for large page counts while preserving smooth page turn animation.
 
 
 
@@ -219,66 +249,6 @@ TurnablePage(
 )
 ```
 
-### PDF Support (TurnablePdf)
-
-The package includes a helper wrapper `TurnablePdf` for quickly displaying PDF documents with the same flipping experience.
-
-#### Initialization
-
-Call once before runApp (e.g. in `main()`):
-
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  TurnablePdf.initPDFLoaders(); // prepare PDF loaders (network / asset / file)
-  runApp(const MyApp());
-}
-```
-
-#### Basic Network PDF
-
-```dart
-TurnablePdf.network(
-  'https://example.com/sample.pdf',
-  pageViewMode: PageViewMode.double,
-  paperBoundaryDecoration: PaperBoundaryDecoration.modern,
-  settings: FlipSettings(
-    flippingTime: 800,
-    swipeDistance: 60,
-    cornerTriggerAreaSize: 0.15,
-  ),
-)
-```
-
-#### From Assets
-
-```dart
-TurnablePdf.asset(
-  'assets/docs/book.pdf',
-  pageViewMode: PageViewMode.single,
-)
-```
-
-#### From File (e.g. file picker)
-
-```dart
-final file = File(pathFromPicker);
-TurnablePdf.file(
-  file,
-  pageViewMode: PageViewMode.double,
-)
-```
-
-#### Custom Page Builder Hook
-
-You can wrap each rendered PDF page (which is provided as an `Image` / `Widget`) inside additional UI by using the standard `builder` of `TurnablePage` in combination with `TurnablePdf` if you expose the underlying controller. (Advanced usage; see source for details.)
-
-#### Notes
-
-- Pages are rasterized; large PDFs may take time to render on first load.
-
-## Roadmap
-
 - [x] Core page flipping logic
 - [x] Widget-based pages
 - [x] Touch/gesture handling
@@ -288,7 +258,6 @@ You can wrap each rendered PDF page (which is provided as an `Image` / `Widget`)
 - [x] Hardware-accelerated rendering with RenderBox
 - [x] Responsive design support
 - [x] Portrait/landscape orientation
-- [x] PDF document support
 - [ ] Enhanced accessibility features
 - [ ] Advanced animation customization
 - [ ] Bookmark and navigation features
