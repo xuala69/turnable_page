@@ -155,6 +155,7 @@ class RenderTurnableBook extends RenderBox
       _initialized = true;
       pageFlip.pages = collection;
     }
+    debugPrint('RenderTurnableBook size = $size');
   }
 
   @override
@@ -787,7 +788,7 @@ class RenderTurnableBook extends RenderBox
       }
     }
 
-    return false;
+    return size.contains(position);
   }
 
   bool _isPositionInChildBounds(Offset position, double width, double height) {

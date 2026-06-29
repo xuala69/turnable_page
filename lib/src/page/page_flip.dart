@@ -27,6 +27,7 @@ class PageFlip extends EventObject {
   // Interaction now handled directly by RenderTurnableBook via pointer events
 
   PageCollection? pages;
+  bool isInteractionEnabled = true;
 
   /// Create a new PageFlip instance with FlipSetting object
   ///  FlipSetting [setting] - Configuration object
@@ -208,8 +209,10 @@ class PageFlip extends EventObject {
     return sqrt(dx * dx + dy * dy);
   }
 
-  /// Start user touch interaction
   void startUserTouch(Point pos) {
+    if (!isInteractionEnabled) {
+      return;
+    }
     isUserTouch = true;
     isUserMove = false;
     mousePosition = pos;
@@ -220,6 +223,10 @@ class PageFlip extends EventObject {
 
   /// Handle user move
   void userMove(Point pos, bool isTouch) {
+    if (!isInteractionEnabled) {
+      return;
+    }
+
     if (isUserTouch) {
       if (mousePosition != null &&
           _getDistanceBetweenPoints(mousePosition!, pos) > 5) {
@@ -232,6 +239,12 @@ class PageFlip extends EventObject {
 
   /// Handle user stop interaction
   void userStop(Point pos, [bool isSwipe = false]) {
+    if (!isInteractionEnabled) {
+      isUserTouch = false;
+      isUserMove = false;
+      return;
+    }
+
     if (isUserTouch) {
       isUserTouch = false;
 
@@ -241,6 +254,7 @@ class PageFlip extends EventObject {
         final fastSwipe =
             settings.enableInertia &&
             velocity.abs() > settings.inertiaVelocityThreshold;
+
         if (!isUserMove) {
           flipProcess.flip(pos);
         } else {

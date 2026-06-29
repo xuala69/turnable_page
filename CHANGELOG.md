@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.4 - 2026-06-29
+- **Feature : support to disable interaction with child widget
+
 
 ## 1.0.3 - 2026-06-25
 - **Bug fix: Fixed Pdfrx.getCacheDirectory setter not found error**
