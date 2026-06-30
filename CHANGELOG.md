@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.6 - 2026-06-30
+- Cleanup: removed generated `build/` artifacts from the repository.
+- Cleanup: removed unused empty file `lib/src/event/page_flip_notifier.dart`.
+- Docs: refocused package docs and metadata around book-style PDF page turning with `pdfrx` integration through page widgets.
+
 ## 1.0.4 - 2026-06-29
 - **Feature : support to disable interaction with child widget
 

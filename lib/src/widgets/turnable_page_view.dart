@@ -19,6 +19,7 @@ class TurnablePageView extends StatefulWidget {
   final Size bookSize;
   final PaperBoundaryDecoration paperBoundaryDecoration;
   final bool pagesBoundaryIsEnabled;
+  final bool interactionEnabled;
 
   const TurnablePageView({
     super.key,
@@ -31,6 +32,7 @@ class TurnablePageView extends StatefulWidget {
     required this.settings,
     required this.paperBoundaryDecoration,
     this.pagesBoundaryIsEnabled = true,
+    this.interactionEnabled = true,
   });
 
   @override
@@ -152,6 +154,7 @@ class _TurnablePageViewState extends State<TurnablePageView> {
         pageCount: widget.pageCount,
         settings: _settings,
         pageFlip: _pageFlip,
+        interactionEnabled: widget.interactionEnabled,
         children: _buildActiveChildren(context),
       ),
     );

@@ -47,6 +47,8 @@ class TurnablePage extends StatelessWidget {
   /// Whether page boundary decoration is enabled.
   final bool pagesBoundaryIsEnabled;
 
+  final bool interactionEnabled;
+
   TurnablePage({
     super.key,
     this.controller,
@@ -59,6 +61,7 @@ class TurnablePage extends StatelessWidget {
     this.paperBoundaryDecoration = PaperBoundaryDecoration.vintage,
     FlipSettings? settings,
     this.pagesBoundaryIsEnabled = true,
+    this.interactionEnabled = true,
   }) : settings = settings ?? FlipSettings() {
     if (settings != null) {
       assert(

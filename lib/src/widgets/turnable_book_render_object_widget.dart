@@ -8,6 +8,7 @@ class TurnableBookRenderObjectWidget extends MultiChildRenderObjectWidget {
   final int pageCount;
   final FlipSettings settings;
   final PageFlip pageFlip;
+  final bool interactionEnabled;
 
   const TurnableBookRenderObjectWidget({
     super.key,
@@ -15,11 +16,18 @@ class TurnableBookRenderObjectWidget extends MultiChildRenderObjectWidget {
     required super.children,
     required this.settings,
     required this.pageFlip,
+    this.interactionEnabled = true,
   });
 
   @override
   RenderTurnableBook createRenderObject(BuildContext context) {
-    final render = RenderTurnableBook(settings, pageFlip, pageCount);
+    final render = RenderTurnableBook(
+      settings,
+      pageFlip,
+      pageCount,
+      interactionEnabled: interactionEnabled,
+    );
+
     return render;
   }
 
@@ -28,6 +36,7 @@ class TurnableBookRenderObjectWidget extends MultiChildRenderObjectWidget {
     BuildContext context,
     RenderTurnableBook renderObject,
   ) {
+    renderObject.isInteractionEnabled = interactionEnabled;
     renderObject.updateSettings(settings, pageCount);
   }
 }

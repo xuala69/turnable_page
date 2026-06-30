@@ -10,6 +10,7 @@ import '../flip/flip_settings.dart';
 import '../model/page_rect.dart';
 import '../model/point.dart';
 import '../render/render_page.dart';
+import '../render/render_turnable_book.dart';
 import 'book_page.dart';
 
 /// Class representing a main PageFlip object
@@ -27,7 +28,17 @@ class PageFlip extends EventObject {
   // Interaction now handled directly by RenderTurnableBook via pointer events
 
   PageCollection? pages;
-  bool isInteractionEnabled = true;
+  bool _isInteractionEnabled = true;
+
+  bool get isInteractionEnabled => _isInteractionEnabled;
+
+  set isInteractionEnabled(bool value) {
+    _isInteractionEnabled = value;
+
+    if (_render is RenderTurnableBook) {
+      (_render as RenderTurnableBook).isInteractionEnabled = value;
+    }
+  }
 
   /// Create a new PageFlip instance with FlipSetting object
   ///  FlipSetting [setting] - Configuration object

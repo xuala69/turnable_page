@@ -1,16 +1,25 @@
-# examples
+# Example App
 
-A new Flutter project.
+This example shows how to pair `turnable_page` with `pdfrx` so PDF pages can
+be turned like a book.
 
-## Getting Started
+## What it demonstrates
 
-This project is a starting point for a Flutter application.
+- Loading a PDF from app assets via `PdfDocumentViewBuilder.asset`
+- Rendering each page with `PdfPageView`
+- Feeding those page widgets into `TurnablePage.builder`
+- Programmatic navigation with `PageFlipController`
 
-A few resources to get you started if this is your first Flutter project:
+## Sample PDF
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+The demo uses:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `assets/PDF32000_2008.pdf`
+- Source: https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf
+
+## Run
+
+```bash
+flutter pub get
+flutter run
+```

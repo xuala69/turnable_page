@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:turnable_page/turnable_page.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -11,145 +12,49 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Turnable Page',
+      title: 'Turnable Page + pdfrx',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D3B66)),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: _AnimationTestPage(),
+      home: const PdfBookDemoPage(),
     );
   }
 }
 
-class _AnimationTestPage extends StatefulWidget {
-  const _AnimationTestPage();
+class PdfBookDemoPage extends StatefulWidget {
+  const PdfBookDemoPage({super.key});
 
   @override
-  _AnimationTestPageState createState() => _AnimationTestPageState();
+  State<PdfBookDemoPage> createState() => _PdfBookDemoPageState();
 }
 
-class _AnimationTestPageState extends State<_AnimationTestPage> {
-  late PageFlipController _controller;
-  final List<String> _displayItemsFromMockApi = [];
+class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
+  static const String sampleAssetPath = 'assets/PDF32000_2008.pdf';
 
-  final ValueNotifier<int> _currentPageNotifier = ValueNotifier<int>(0);
-  final ValueNotifier<int> _flipCountNotifier = ValueNotifier<int>(0);
+  late final PageFlipController controller;
+  final ValueNotifier<int> currentPageNotifier = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
-    _controller = PageFlipController();
-    _displayItemsFromMockApi.addAll(["1", "2", "3", "4", "5", "6", "7", "8"]);
+    controller = PageFlipController();
   }
 
   @override
   void dispose() {
-    _currentPageNotifier.dispose();
-    _flipCountNotifier.dispose();
+    currentPageNotifier.dispose();
     super.dispose();
   }
 
-  Widget _buildLoadingPage() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: Colors.pinkAccent),
-          SizedBox(height: 20),
-          Text("Loading Page...", style: TextStyle(color: Colors.pinkAccent)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTestPage(int index, BoxConstraints constraints) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.primaries[index % Colors.primaries.length].shade300,
-            Colors.primaries[index % Colors.primaries.length].shade600,
-          ],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Test content
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_stories, size: 80, color: Colors.white),
-                SizedBox(height: 20),
-                Text(
-                  'Test Page ${_displayItemsFromMockApi[index]}',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 20),
-                Text(
-                  'Swipe to turn the page',
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
-                ),
-                SizedBox(height: 40),
-                // Interactive button for testing
-                ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Page ${_displayItemsFromMockApi[index]} button tapped',
-                        ),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.touch_app),
-                  label: Text('Label'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor:
-                        Colors.primaries[index % Colors.primaries.length],
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Page info overlay
-          Positioned(
-            top: 20,
-            left: 20,
-            child: ValueListenableBuilder<int>(
-              valueListenable: _flipCountNotifier,
-              builder: (context, flipCount, child) {
-                return ValueListenableBuilder<int>(
-                  valueListenable: _currentPageNotifier,
-                  builder: (context, currentPage, child) {
-                    return Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Animation Test\nCurrent Page: ${currentPage + 1}\nNumber of Flips: $flipCount',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+  Widget buildPdfPage(PdfDocument document, int pageIndex) {
+    return ColoredBox(
+      color: Colors.white,
+      child: PdfPageView(
+        document: document,
+        pageNumber: pageIndex + 1,
+        alignment: Alignment.center,
       ),
     );
   }
@@ -157,55 +62,87 @@ class _AnimationTestPageState extends State<_AnimationTestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: _displayItemsFromMockApi.isEmpty
-          ? null
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      appBar: AppBar(
+        title: const Text('TurnablePage + pdfrx'),
+        actions: [
+          IconButton(
+            onPressed: controller.previousPage,
+            tooltip: 'Previous page',
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          ),
+          IconButton(
+            onPressed: controller.nextPage,
+            tooltip: 'Next page',
+            icon: const Icon(Icons.arrow_forward_ios_rounded),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
               children: [
-                FloatingActionButton(
-                  onPressed: () {
-                    _controller.previousPage();
-                  },
-                  child: Icon(Icons.arrow_back_ios_new_rounded),
+                Expanded(
+                  child: Text(
+                    'Sample PDF: PDF32000_2008.pdf',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                FloatingActionButton(
-                  onPressed: () {
-                    _controller.nextPage();
+                ValueListenableBuilder<int>(
+                  valueListenable: currentPageNotifier,
+                  builder: (context, currentPage, child) {
+                    return Text(
+                      'Current: ${currentPage + 1}',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    );
                   },
-                  child: Icon(Icons.arrow_forward_ios_rounded),
                 ),
               ],
             ),
-      body: Center(
-        child: TurnablePage(
-          key: UniqueKey(),
-          controller: _controller,
-          pageCount: _displayItemsFromMockApi.isEmpty
-              ? 1
-              : _displayItemsFromMockApi.length,
-          pageViewMode: PageViewMode.single,
-          paperBoundaryDecoration: PaperBoundaryDecoration.modern,
-          settings: FlipSettings(
-            hideLeftShadow: true,
-            onlyVerticalPageFlip: true,
-            drawShadow: true,
-            flippingTime: 800,
-            swipeDistance: 60.0,
-            cornerTriggerAreaSize: 0.15,
-            usePortrait: false,
           ),
-          onPageChanged: (leftPageIndex, rightPageIndex) {
-            // log('Page: $leftPageIndex, $rightPageIndex');
-            _currentPageNotifier.value = rightPageIndex;
-            _flipCountNotifier.value = _flipCountNotifier.value + 1;
-          },
-          builder: (context, pageIndex, constraints) {
-            if (_displayItemsFromMockApi.isEmpty) {
-              return _buildLoadingPage();
-            }
-            return _buildTestPage(pageIndex, constraints);
-          },
-        ),
+          Expanded(
+            child: PdfDocumentViewBuilder.asset(
+              sampleAssetPath,
+              builder: (context, document) {
+                if (document == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final totalPages = document.pages.length;
+                if (totalPages == 0) {
+                  return const Center(child: Text('No pages found in PDF'));
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: TurnablePage(
+                    controller: controller,
+                    pageCount: totalPages,
+                    pageViewMode: PageViewMode.single,
+                    paperBoundaryDecoration: PaperBoundaryDecoration.modern,
+                    settings: FlipSettings(
+                      drawShadow: true,
+                      flippingTime: 700,
+                      swipeDistance: 70,
+                      cornerTriggerAreaSize: 0.14,
+                    ),
+                    onPageChanged: (leftPageIndex, rightPageIndex) {
+                      currentPageNotifier.value = rightPageIndex >= 0
+                          ? rightPageIndex
+                          : leftPageIndex;
+                    },
+                    builder: (context, pageIndex, constraints) {
+                      return buildPdfPage(document, pageIndex);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
