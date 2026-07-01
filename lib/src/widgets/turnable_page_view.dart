@@ -25,6 +25,7 @@ class TurnablePageView extends StatefulWidget {
   final double maxScale;
   final double zoomThreshold;
   final double zoomNormalizeThreshold;
+  final double doubleTapZoomScale;
 
   const TurnablePageView({
     super.key,
@@ -43,6 +44,7 @@ class TurnablePageView extends StatefulWidget {
     this.maxScale = 4.0,
     this.zoomThreshold = 1.01,
     this.zoomNormalizeThreshold = 1.04,
+    required this.doubleTapZoomScale,
   });
 
   @override
@@ -180,6 +182,7 @@ class _TurnablePageViewState extends State<TurnablePageView> {
               maxScale: widget.maxScale,
               zoomThreshold: widget.zoomThreshold,
               zoomNormalizeThreshold: widget.zoomNormalizeThreshold,
+              doubleTapZoomScale: widget.doubleTapZoomScale,
               onZoomChanged: (zoomed) {
                 _handlePageZoomChanged(pageIndex: index, zoomed: zoomed);
               },
@@ -217,6 +220,7 @@ class _TurnableZoomWrapper extends StatefulWidget {
     required this.maxScale,
     required this.zoomThreshold,
     required this.zoomNormalizeThreshold,
+    required this.doubleTapZoomScale,
     required this.onZoomChanged,
   });
 
@@ -225,6 +229,7 @@ class _TurnableZoomWrapper extends StatefulWidget {
   final double maxScale;
   final double zoomThreshold;
   final double zoomNormalizeThreshold;
+  final double doubleTapZoomScale;
   final ValueChanged<bool> onZoomChanged;
 
   @override
@@ -234,6 +239,7 @@ class _TurnableZoomWrapper extends StatefulWidget {
 class _TurnableZoomWrapperState extends State<_TurnableZoomWrapper> {
   late final TransformationController _controller;
   bool _isZoomed = false;
+  TapDownDetails? _lastDoubleTapDown;
 
   @override
   void initState() {
@@ -273,17 +279,55 @@ class _TurnableZoomWrapperState extends State<_TurnableZoomWrapper> {
     }
   }
 
+  void _onDoubleTapDown(TapDownDetails details) {
+    _lastDoubleTapDown = details;
+  }
+
+  void _onDoubleTap() {
+    final currentScale = _controller.value.getMaxScaleOnAxis();
+    if (currentScale > widget.zoomThreshold) {
+      _controller.value = Matrix4.identity();
+      return;
+    }
+
+    final targetScale = widget.doubleTapZoomScale
+        .clamp(widget.minScale, widget.maxScale)
+        .toDouble();
+    final localPosition = _lastDoubleTapDown?.localPosition;
+    if (localPosition == null) {
+      _controller.value = Matrix4.diagonal3Values(
+        targetScale,
+        targetScale,
+        1.0,
+      );
+      return;
+    }
+
+    final matrix = Matrix4.diagonal3Values(targetScale, targetScale, 1.0)
+      ..setTranslationRaw(
+        -localPosition.dx * (targetScale - 1.0),
+        -localPosition.dy * (targetScale - 1.0),
+        0.0,
+      );
+    _controller.value = matrix;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InteractiveViewer(
-      transformationController: _controller,
-      minScale: widget.minScale,
-      maxScale: widget.maxScale,
-      panEnabled: true,
-      scaleEnabled: true,
-      onInteractionEnd: _onInteractionEnd,
-      clipBehavior: Clip.hardEdge,
-      child: widget.child,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onDoubleTapDown: _onDoubleTapDown,
+      onDoubleTap: _onDoubleTap,
+      child: InteractiveViewer(
+        transformationController: _controller,
+        minScale: widget.minScale,
+        maxScale: widget.maxScale,
+        panEnabled: true,
+        scaleEnabled: true,
+        onInteractionEnd: _onInteractionEnd,
+        clipBehavior: Clip.hardEdge,
+        child: widget.child,
+      ),
     );
   }
 }

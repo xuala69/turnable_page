@@ -119,6 +119,18 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
 - `PageViewMode`: `single` or `double` spread.
 - `FlipCorner`, `SizeType`, `PaperBoundaryDecoration`: visual and interaction tuning.
 
+### Overlay API
+
+`TurnablePage` also supports package-level overlay slots and optional auto-hide:
+
+- `topOverlay` and `bottomOverlay`
+- `autoHideOverlays`
+- `overlayVisibleDuration`
+- `overlayAnimationDuration`
+- `overlayAnimationBuilder` (optional custom transition)
+
+If `overlayAnimationBuilder` is not provided, a smooth fade + slide animation is used by default.
+
 ## Notes for PDF Apps
 
 - Keep PDF decoding/rendering outside this package.

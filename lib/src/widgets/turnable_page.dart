@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../enums/page_view_mode.dart';
@@ -53,6 +55,21 @@ class TurnablePage extends StatelessWidget {
   /// Optional widget rendered in a bottom safe area overlay above the book.
   final Widget? bottomOverlay;
 
+  /// Whether top/bottom overlays auto-hide after a delay.
+  final bool autoHideOverlays;
+
+  /// How long overlays stay visible before auto-hide starts.
+  final Duration overlayVisibleDuration;
+
+  /// Duration of the overlay show/hide animation.
+  final Duration overlayAnimationDuration;
+
+  /// Custom animation builder for overlay transitions.
+  final TurnableOverlayAnimationBuilder? overlayAnimationBuilder;
+
+  /// Curve used by the default overlay animation.
+  final Curve overlayAnimationCurve;
+
   /// Whether page content should support built-in pinch zoom.
   final bool enablePinchZoom;
 
@@ -67,6 +84,9 @@ class TurnablePage extends StatelessWidget {
 
   /// Scale threshold used to normalize zoom back to identity on interaction end.
   final double zoomNormalizeThreshold;
+
+  /// Scale used when double-tapping to zoom in.
+  final double doubleTapZoomScale;
 
   final bool interactionEnabled;
 
@@ -84,11 +104,17 @@ class TurnablePage extends StatelessWidget {
     this.pagesBoundaryIsEnabled = true,
     this.topOverlay,
     this.bottomOverlay,
+    this.autoHideOverlays = false,
+    this.overlayVisibleDuration = const Duration(seconds: 2),
+    this.overlayAnimationDuration = const Duration(milliseconds: 260),
+    this.overlayAnimationBuilder,
+    this.overlayAnimationCurve = Curves.easeOutCubic,
     this.enablePinchZoom = false,
     this.minScale = 1.0,
     this.maxScale = 4.0,
     this.zoomThreshold = 1.01,
     this.zoomNormalizeThreshold = 1.04,
+    this.doubleTapZoomScale = 2.0,
     this.interactionEnabled = true,
   }) : settings = settings ?? FlipSettings() {
     if (settings != null) {
@@ -167,6 +193,7 @@ class TurnablePage extends StatelessWidget {
           maxScale: maxScale,
           zoomThreshold: zoomThreshold,
           zoomNormalizeThreshold: zoomNormalizeThreshold,
+          doubleTapZoomScale: doubleTapZoomScale,
           paperBoundaryDecoration: paperBoundaryDecoration,
         );
 
@@ -174,26 +201,201 @@ class TurnablePage extends StatelessWidget {
           return pageView;
         }
 
-        return Stack(
-          children: [
-            Positioned.fill(child: pageView),
-            if (topOverlay != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(bottom: false, child: topOverlay!),
-              ),
-            if (bottomOverlay != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(top: false, child: bottomOverlay!),
-              ),
-          ],
+        return _TurnableOverlayContainer(
+          topOverlay: topOverlay,
+          bottomOverlay: bottomOverlay,
+          autoHideOverlays: autoHideOverlays,
+          overlayVisibleDuration: overlayVisibleDuration,
+          overlayAnimationDuration: overlayAnimationDuration,
+          overlayAnimationBuilder: overlayAnimationBuilder,
+          overlayAnimationCurve: overlayAnimationCurve,
+          child: pageView,
         );
       },
+    );
+  }
+}
+
+class _TurnableOverlayContainer extends StatefulWidget {
+  const _TurnableOverlayContainer({
+    required this.child,
+    required this.topOverlay,
+    required this.bottomOverlay,
+    required this.autoHideOverlays,
+    required this.overlayVisibleDuration,
+    required this.overlayAnimationDuration,
+    required this.overlayAnimationBuilder,
+    required this.overlayAnimationCurve,
+  });
+
+  final Widget child;
+  final Widget? topOverlay;
+  final Widget? bottomOverlay;
+  final bool autoHideOverlays;
+  final Duration overlayVisibleDuration;
+  final Duration overlayAnimationDuration;
+  final TurnableOverlayAnimationBuilder? overlayAnimationBuilder;
+  final Curve overlayAnimationCurve;
+
+  @override
+  State<_TurnableOverlayContainer> createState() =>
+      _TurnableOverlayContainerState();
+}
+
+class _TurnableOverlayContainerState extends State<_TurnableOverlayContainer> {
+  bool _overlaysVisible = true;
+  Timer? _hideTimer;
+
+  bool get _hasAnyOverlay =>
+      widget.topOverlay != null || widget.bottomOverlay != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_hasAnyOverlay && widget.autoHideOverlays) {
+      _scheduleHide();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _TurnableOverlayContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!_hasAnyOverlay) {
+      _hideTimer?.cancel();
+      _hideTimer = null;
+      _overlaysVisible = true;
+      return;
+    }
+
+    if (!widget.autoHideOverlays) {
+      _hideTimer?.cancel();
+      _hideTimer = null;
+      return;
+    }
+
+    if (!oldWidget.autoHideOverlays && widget.autoHideOverlays) {
+      _toggleOverlays();
+    }
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(widget.overlayVisibleDuration, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _overlaysVisible = false;
+      });
+    });
+  }
+
+  void _toggleOverlays() {
+    if (!_hasAnyOverlay) {
+      return;
+    }
+
+    if (_overlaysVisible) {
+      setState(() {
+        _overlaysVisible = false;
+      });
+      _hideTimer?.cancel();
+      _hideTimer = null;
+      return;
+    }
+
+    setState(() {
+      _overlaysVisible = true;
+    });
+
+    if (widget.autoHideOverlays) {
+      _scheduleHide();
+    }
+  }
+
+  Widget _defaultAnimationBuilder(Animation<double> animation, Widget child) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: widget.overlayAnimationCurve,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, -0.06),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildAnimatedOverlay({required Widget child, required bool top}) {
+    final visibleChild = _overlaysVisible
+        ? child
+        : const SizedBox(key: ValueKey('overlay-hidden'));
+
+    return IgnorePointer(
+      ignoring: !_overlaysVisible,
+      child: AnimatedSwitcher(
+        duration: widget.overlayAnimationDuration,
+        transitionBuilder: (switchChild, animation) {
+          final builder =
+              widget.overlayAnimationBuilder ??
+              (context, anim, target) => _defaultAnimationBuilder(anim, target);
+          return builder(context, animation, switchChild);
+        },
+        child: KeyedSubtree(
+          key: ValueKey('overlay-${top ? 'top' : 'bottom'}-$_overlaysVisible'),
+          child: visibleChild,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _toggleOverlays,
+      child: Stack(
+        children: [
+          Positioned.fill(child: widget.child),
+          if (widget.topOverlay != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: _buildAnimatedOverlay(
+                  child: widget.topOverlay!,
+                  top: true,
+                ),
+              ),
+            ),
+          if (widget.bottomOverlay != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: _buildAnimatedOverlay(
+                  child: widget.bottomOverlay!,
+                  top: false,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -212,6 +414,14 @@ typedef TurnableBuilder =
 /// Called when the current visible page spread changes.
 typedef TurnablePageCallback =
     void Function(int leftPageIndex, int rightPageIndex);
+
+/// Builds overlay show/hide animation for [TurnablePage] top/bottom overlays.
+typedef TurnableOverlayAnimationBuilder =
+    Widget Function(
+      BuildContext context,
+      Animation<double> animation,
+      Widget child,
+    );
 
 /// Internal builder type used by [TurnablePageView].
 typedef PageWidgetBuilder = Widget Function(BuildContext context, int index);
