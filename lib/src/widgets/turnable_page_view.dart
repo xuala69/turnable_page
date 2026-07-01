@@ -20,6 +20,11 @@ class TurnablePageView extends StatefulWidget {
   final PaperBoundaryDecoration paperBoundaryDecoration;
   final bool pagesBoundaryIsEnabled;
   final bool interactionEnabled;
+  final bool enablePinchZoom;
+  final double minScale;
+  final double maxScale;
+  final double zoomThreshold;
+  final double zoomNormalizeThreshold;
 
   const TurnablePageView({
     super.key,
@@ -33,6 +38,11 @@ class TurnablePageView extends StatefulWidget {
     required this.paperBoundaryDecoration,
     this.pagesBoundaryIsEnabled = true,
     this.interactionEnabled = true,
+    this.enablePinchZoom = false,
+    this.minScale = 1.0,
+    this.maxScale = 4.0,
+    this.zoomThreshold = 1.01,
+    this.zoomNormalizeThreshold = 1.04,
   });
 
   @override
@@ -45,6 +55,32 @@ class _TurnablePageViewState extends State<TurnablePageView> {
   late int _currentPageIndex;
   final Map<int, Widget> _pageCache = {};
   final List<int> _cacheOrder = [];
+  final Set<int> _zoomedPages = <int>{};
+
+  bool get _isAnyPageZoomed => _zoomedPages.isNotEmpty;
+
+  void _safeSetState() {
+    if (!mounted) {
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _handlePageZoomChanged({required int pageIndex, required bool zoomed}) {
+    final hadAnyZoom = _isAnyPageZoomed;
+    if (zoomed) {
+      _zoomedPages.add(pageIndex);
+    } else {
+      _zoomedPages.remove(pageIndex);
+    }
+    if (hadAnyZoom != _isAnyPageZoomed) {
+      _safeSetState();
+    }
+  }
 
   /// Get the adjusted settings for the PageFlip instance
   FlipSettings get _settings => widget.settings.copyWith(
@@ -70,6 +106,9 @@ class _TurnablePageViewState extends State<TurnablePageView> {
       final right = (newIndex + 1 < widget.pageCount) ? newIndex + 1 : -1;
       widget.settings.startPageIndex = left;
       _currentPageIndex = left;
+      if (_zoomedPages.isNotEmpty) {
+        _zoomedPages.clear();
+      }
 
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -132,15 +171,24 @@ class _TurnablePageViewState extends State<TurnablePageView> {
   List<Widget> _buildActiveChildren(BuildContext context) {
     final activeIndices = _activePageIndices();
     _ensurePageCache(activeIndices, context);
-    return activeIndices
-        .map(
-          (index) => PageHost(
-            key: ValueKey(index),
-            index: index,
-            child: _pageCache[index]!,
-          ),
-        )
-        .toList();
+    return activeIndices.map((index) {
+      final baseChild = _pageCache[index]!;
+      final child = widget.enablePinchZoom
+          ? _TurnableZoomWrapper(
+              key: ValueKey('zoom-$index'),
+              minScale: widget.minScale,
+              maxScale: widget.maxScale,
+              zoomThreshold: widget.zoomThreshold,
+              zoomNormalizeThreshold: widget.zoomNormalizeThreshold,
+              onZoomChanged: (zoomed) {
+                _handlePageZoomChanged(pageIndex: index, zoomed: zoomed);
+              },
+              child: baseChild,
+            )
+          : baseChild;
+
+      return PageHost(key: ValueKey(index), index: index, child: child);
+    }).toList();
   }
 
   @override
@@ -154,9 +202,88 @@ class _TurnablePageViewState extends State<TurnablePageView> {
         pageCount: widget.pageCount,
         settings: _settings,
         pageFlip: _pageFlip,
-        interactionEnabled: widget.interactionEnabled,
+        interactionEnabled: widget.interactionEnabled && !_isAnyPageZoomed,
         children: _buildActiveChildren(context),
       ),
+    );
+  }
+}
+
+class _TurnableZoomWrapper extends StatefulWidget {
+  const _TurnableZoomWrapper({
+    super.key,
+    required this.child,
+    required this.minScale,
+    required this.maxScale,
+    required this.zoomThreshold,
+    required this.zoomNormalizeThreshold,
+    required this.onZoomChanged,
+  });
+
+  final Widget child;
+  final double minScale;
+  final double maxScale;
+  final double zoomThreshold;
+  final double zoomNormalizeThreshold;
+  final ValueChanged<bool> onZoomChanged;
+
+  @override
+  State<_TurnableZoomWrapper> createState() => _TurnableZoomWrapperState();
+}
+
+class _TurnableZoomWrapperState extends State<_TurnableZoomWrapper> {
+  late final TransformationController _controller;
+  bool _isZoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TransformationController();
+    _controller.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    if (_isZoomed) {
+      widget.onZoomChanged(false);
+      _isZoomed = false;
+    }
+    _controller.removeListener(_onTransformChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _controller.value.getMaxScaleOnAxis() > widget.zoomThreshold;
+    if (zoomed == _isZoomed) {
+      return;
+    }
+    _isZoomed = zoomed;
+    widget.onZoomChanged(zoomed);
+  }
+
+  void _onInteractionEnd(ScaleEndDetails details) {
+    final scale = _controller.value.getMaxScaleOnAxis();
+    if (scale <= widget.zoomNormalizeThreshold) {
+      _controller.value = Matrix4.identity();
+      if (_isZoomed) {
+        _isZoomed = false;
+        widget.onZoomChanged(false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      transformationController: _controller,
+      minScale: widget.minScale,
+      maxScale: widget.maxScale,
+      panEnabled: true,
+      scaleEnabled: true,
+      onInteractionEnd: _onInteractionEnd,
+      clipBehavior: Clip.hardEdge,
+      child: widget.child,
     );
   }
 }

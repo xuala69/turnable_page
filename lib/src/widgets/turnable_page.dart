@@ -47,6 +47,27 @@ class TurnablePage extends StatelessWidget {
   /// Whether page boundary decoration is enabled.
   final bool pagesBoundaryIsEnabled;
 
+  /// Optional widget rendered in a top safe area overlay above the book.
+  final Widget? topOverlay;
+
+  /// Optional widget rendered in a bottom safe area overlay above the book.
+  final Widget? bottomOverlay;
+
+  /// Whether page content should support built-in pinch zoom.
+  final bool enablePinchZoom;
+
+  /// Minimum scale used by built-in pinch zoom.
+  final double minScale;
+
+  /// Maximum scale used by built-in pinch zoom.
+  final double maxScale;
+
+  /// Scale threshold above which page-turn gestures are temporarily locked.
+  final double zoomThreshold;
+
+  /// Scale threshold used to normalize zoom back to identity on interaction end.
+  final double zoomNormalizeThreshold;
+
   final bool interactionEnabled;
 
   TurnablePage({
@@ -61,6 +82,13 @@ class TurnablePage extends StatelessWidget {
     this.paperBoundaryDecoration = PaperBoundaryDecoration.vintage,
     FlipSettings? settings,
     this.pagesBoundaryIsEnabled = true,
+    this.topOverlay,
+    this.bottomOverlay,
+    this.enablePinchZoom = false,
+    this.minScale = 1.0,
+    this.maxScale = 4.0,
+    this.zoomThreshold = 1.01,
+    this.zoomNormalizeThreshold = 1.04,
     this.interactionEnabled = true,
   }) : settings = settings ?? FlipSettings() {
     if (settings != null) {
@@ -124,7 +152,7 @@ class TurnablePage extends StatelessWidget {
           height: bookSize.height,
         );
 
-        return TurnablePageView(
+        final pageView = TurnablePageView(
           builder: (context, index) => builder(context, index, constraints),
           bookSize: bookSize,
           settings: adjustedSettings,
@@ -134,7 +162,36 @@ class TurnablePage extends StatelessWidget {
           onPageChanged: onPageChanged,
           pagesBoundaryIsEnabled: pagesBoundaryIsEnabled,
           interactionEnabled: interactionEnabled,
+          enablePinchZoom: enablePinchZoom,
+          minScale: minScale,
+          maxScale: maxScale,
+          zoomThreshold: zoomThreshold,
+          zoomNormalizeThreshold: zoomNormalizeThreshold,
           paperBoundaryDecoration: paperBoundaryDecoration,
+        );
+
+        if (topOverlay == null && bottomOverlay == null) {
+          return pageView;
+        }
+
+        return Stack(
+          children: [
+            Positioned.fill(child: pageView),
+            if (topOverlay != null)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(bottom: false, child: topOverlay!),
+              ),
+            if (bottomOverlay != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(top: false, child: bottomOverlay!),
+              ),
+          ],
         );
       },
     );

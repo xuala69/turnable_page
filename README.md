@@ -9,7 +9,6 @@ It is a page-turn engine, not a PDF parser. For PDF readers, pair it with a rend
 ```yaml
 dependencies:
   turnable_page: ^1.0.6
-  pdfrx: ^2.4.4
 ```
 
 Then run:
@@ -59,7 +58,6 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
 
   late final Future<PdfDocument> _future = _load();
   PdfDocument? _document;
-  bool _isZoomed = false;
 
   Future<PdfDocument> _load() async {
     await pdfrxFlutterInitialize();
@@ -88,7 +86,11 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
           controller: controller,
           pageCount: document.pages.length,
           pageViewMode: PageViewMode.single,
-          interactionEnabled: !_isZoomed,
+          enablePinchZoom: true,
+          minScale: 1.0,
+          maxScale: 4.0,
+          zoomThreshold: 1.01,
+          zoomNormalizeThreshold: 1.04,
           settings: FlipSettings(
             drawShadow: true,
             flippingTime: 700,
@@ -96,20 +98,10 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
             cornerTriggerAreaSize: 0.14,
           ),
           builder: (context, pageIndex, constraints) {
-            return InteractiveViewer(
-              minScale: 1,
-              maxScale: 4,
-              onInteractionUpdate: (details) {
-                final zoomed = details.scale > 1.01;
-                if (zoomed != _isZoomed) {
-                  setState(() => _isZoomed = zoomed);
-                }
-              },
-              child: PdfPageView(
-                document: document,
-                pageNumber: pageIndex + 1,
-                alignment: Alignment.center,
-              ),
+            return PdfPageView(
+              document: document,
+              pageNumber: pageIndex + 1,
+              alignment: Alignment.center,
             );
           },
         );
@@ -132,7 +124,7 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
 - Keep PDF decoding/rendering outside this package.
 - Provide stable keys when needed so expensive page widgets keep their state.
 - Use `PageFlipController` for external UI controls (next/prev/jump).
-- If pages are zoomable, disable turn interaction while zoomed (`interactionEnabled: false`) and re-enable it when scale returns to ~1.0.
+- Built-in zoom (`enablePinchZoom`) automatically locks page-turn while zoomed and unlocks after scale normalizes.
 
 ## Gesture Model (Recommended)
 

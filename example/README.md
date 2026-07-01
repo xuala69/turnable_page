@@ -5,12 +5,11 @@ be turned like a book.
 
 ## What it demonstrates
 
-- Loading a PDF from app assets via explicit `PdfDocument.openAsset`
+- Explicit `pdfrx` document loading in the example app
 - Rendering each page with `PdfPageView`
-- Feeding those page widgets into `TurnablePage.builder`
+- Using `TurnablePage` built-in pinch zoom support
 - Programmatic navigation with `PageFlipController`
-- Pinch-to-zoom using `InteractiveViewer`
-- Locking page-turn gestures while zoomed, then unlocking when zoom resets
+- Smooth page flip with package-level gesture/animation handling
 
 ## Sample PDF
 
@@ -28,6 +27,6 @@ flutter run
 
 ## Required Notes
 
-- The example manually initializes pdfrx (`pdfrxFlutterInitialize`) because it opens `PdfDocument` directly.
-- The loaded `PdfDocument` is disposed in `dispose()`.
-- While zoomed in, `TurnablePage.interactionEnabled` is set to `false` to prevent zoom/flip gesture conflicts.
+- The example initializes pdfrx and opens `PdfDocument` directly.
+- The loaded document is disposed in widget `dispose()`.
+- Zoom lock/unlock behavior is handled by `TurnablePage(enablePinchZoom: true)`.
