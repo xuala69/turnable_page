@@ -2,19 +2,14 @@
 
 Turnable Page is a Flutter widget for realistic, book-style page turning.
 
-This package is focused on one job: animate page flips. It does not parse PDFs itself. Instead, you provide page widgets, which makes it a good fit for `pdfrx`-based PDF readers.
-
-## Why this fits `pdfrx`
-
-- Use `pdfrx` to load and render PDF pages.
-- Feed each rendered page widget into `TurnablePage.builder`.
-- Keep full control over caching, zooming, and document lifecycle in your app.
+It is a page-turn engine, not a PDF parser. For PDF readers, pair it with a renderer such as `pdfrx`, then pass each rendered page widget into `TurnablePage.builder`.
 
 ## Installation
 
 ```yaml
 dependencies:
   turnable_page: ^1.0.6
+  pdfrx: ^2.4.4
 ```
 
 Then run:
@@ -23,38 +18,106 @@ Then run:
 flutter pub get
 ```
 
-## Core Usage
+## Required Setup
+
+If you open `PdfDocument` directly (instead of using `PdfDocumentViewBuilder`), initialize pdfrx before opening the document:
+
+```dart
+await pdfrxFlutterInitialize();
+final document = await PdfDocument.openAsset('assets/PDF32000_2008.pdf');
+```
+
+Also dispose the document when your widget is disposed:
+
+```dart
+document.dispose();
+```
+
+## Core Usage (PDF)
+
+This package works best when you:
+
+- load a `PdfDocument` once,
+- render each page with `PdfPageView`,
+- provide the page widget from `TurnablePage.builder`.
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:turnable_page/turnable_page.dart';
 
-class BookViewer extends StatelessWidget {
-  const BookViewer({
-    super.key,
-    required this.pageCount,
-    required this.pageBuilder,
-  });
+class PdfBookViewer extends StatefulWidget {
+  const PdfBookViewer({super.key});
 
-  final int pageCount;
-  final Widget Function(BuildContext context, int pageIndex) pageBuilder;
+  @override
+  State<PdfBookViewer> createState() => _PdfBookViewerState();
+}
+
+class _PdfBookViewerState extends State<PdfBookViewer> {
+  static const pdfAsset = 'assets/PDF32000_2008.pdf';
+  final controller = PageFlipController();
+
+  late final Future<PdfDocument> _future = _load();
+  PdfDocument? _document;
+  bool _isZoomed = false;
+
+  Future<PdfDocument> _load() async {
+    await pdfrxFlutterInitialize();
+    final doc = await PdfDocument.openAsset(pdfAsset);
+    _document = doc;
+    return doc;
+  }
+
+  @override
+  void dispose() {
+    _document?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return TurnablePage(
-      pageCount: pageCount,
-      pageViewMode: PageViewMode.double,
-      builder: (context, index, constraints) {
-        return SizedBox.expand(
-          child: pageBuilder(context, index),
+    return FutureBuilder<PdfDocument>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final document = snapshot.data!;
+        return TurnablePage(
+          controller: controller,
+          pageCount: document.pages.length,
+          pageViewMode: PageViewMode.single,
+          interactionEnabled: !_isZoomed,
+          settings: FlipSettings(
+            drawShadow: true,
+            flippingTime: 700,
+            swipeDistance: 70,
+            cornerTriggerAreaSize: 0.14,
+          ),
+          builder: (context, pageIndex, constraints) {
+            return InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              onInteractionUpdate: (details) {
+                final zoomed = details.scale > 1.01;
+                if (zoomed != _isZoomed) {
+                  setState(() => _isZoomed = zoomed);
+                }
+              },
+              child: PdfPageView(
+                document: document,
+                pageNumber: pageIndex + 1,
+                alignment: Alignment.center,
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 ```
-
-In a PDF reader app, implement `pageBuilder` with your `pdfrx` page widget for `pageIndex`.
 
 ## Public API
 
@@ -69,6 +132,21 @@ In a PDF reader app, implement `pageBuilder` with your `pdfrx` page widget for `
 - Keep PDF decoding/rendering outside this package.
 - Provide stable keys when needed so expensive page widgets keep their state.
 - Use `PageFlipController` for external UI controls (next/prev/jump).
+- If pages are zoomable, disable turn interaction while zoomed (`interactionEnabled: false`) and re-enable it when scale returns to ~1.0.
+
+## Gesture Model (Recommended)
+
+- Horizontal drag: page turn.
+- Pinch/scale: PDF zoom.
+- While zoomed in: lock page turn to avoid gesture conflict.
+- When zoom returns close to identity: unlock page turn.
+
+This separation gives predictable behavior for PDF readers.
+
+## Platform Notes (pdfrx)
+
+- Windows: enable Developer Mode before building pdfrx-based apps.
+- iOS/macOS/Android/Web: supported by pdfrx; follow pdfrx platform setup docs when needed.
 
 ## Supported Platforms
 

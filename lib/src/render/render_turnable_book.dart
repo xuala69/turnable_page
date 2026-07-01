@@ -5,7 +5,6 @@ import 'package:flutter/scheduler.dart';
 import '../collection/page_collection_impl.dart';
 import '../enums/animation_process.dart';
 import '../enums/book_orientation.dart';
-import '../enums/flip_corner.dart';
 import '../enums/flip_direction.dart';
 import '../enums/flipping_state.dart';
 import '../enums/page_orientation.dart';
@@ -28,8 +27,7 @@ class RenderTurnableBook extends RenderBox
         ContainerRenderObjectMixin<RenderBox, TurnableParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, TurnableParentData>
     implements RenderPage {
-  static const int _swipeTimeout = 250;
-  static const double _minMoveThreshold = 12.0;
+  static const double _minMoveThreshold = 8.0;
   bool get _needsWhitePage {
     if (settings.usePortrait) return false;
     return settings.showCover ? false : pageCount % 2 == 1;
@@ -56,7 +54,6 @@ class RenderTurnableBook extends RenderBox
   List<RenderBox?> _indexedChildren = <RenderBox?>[];
   bool _needsIndexRebuild = true;
   SwipeData? _touchPoint;
-  double get _swipeDistance => settings.swipeDistance;
 
   // Gesture state machine
   bool _isDragging = false;
@@ -64,7 +61,24 @@ class RenderTurnableBook extends RenderBox
   TurnableGestureIntent _gestureIntent = TurnableGestureIntent.idle;
   final Set<int> _activePointers = <int>{};
 
-  bool isInteractionEnabled = true;
+  bool _isInteractionEnabled = true;
+
+  bool get isInteractionEnabled => _isInteractionEnabled;
+
+  set isInteractionEnabled(bool value) {
+    if (_isInteractionEnabled == value) {
+      return;
+    }
+    _isInteractionEnabled = value;
+
+    // When zoom temporarily disables interaction, pointer up/cancel events may
+    // not reach this render object. Hard-reset local gesture state so flips
+    // can resume immediately when interaction is re-enabled.
+    if (!value) {
+      pageFlip.userStop(_initialTouchPoint ?? model.Point(0, 0), true);
+      _resetGestureState();
+    }
+  }
 
   RenderTurnableBook(
     this.settings,
@@ -874,6 +888,18 @@ class RenderTurnableBook extends RenderBox
     final point = model.Point(position.dx, position.dy);
 
     _activePointers.add(pointer);
+
+    // Multi-touch should be reserved for child gestures (pinch/zoom), not page turn.
+    if (_activePointers.length > 1) {
+      if (_isDragging) {
+        pageFlip.userStop(point, false);
+        ensureAnimating();
+      }
+      _gestureIntent = TurnableGestureIntent.scaleGesture;
+      _isDragging = false;
+      return;
+    }
+
     _gestureIntent = TurnableGestureIntent.pending;
     _isDragging = false;
     _initialTouchPoint = point;
@@ -890,6 +916,17 @@ class RenderTurnableBook extends RenderBox
     }
 
     final point = model.Point(position.dx, position.dy);
+
+    if (_activePointers.length > 1) {
+      if (_isDragging) {
+        pageFlip.userStop(point, false);
+        ensureAnimating();
+      }
+      _gestureIntent = TurnableGestureIntent.scaleGesture;
+      _isDragging = false;
+      return;
+    }
+
     final deltaX = point.x - _initialTouchPoint!.x;
     final deltaY = point.y - _initialTouchPoint!.y;
 
@@ -904,7 +941,7 @@ class RenderTurnableBook extends RenderBox
       if (intent == TurnableGestureIntent.horizontalDrag) {
         _gestureIntent = TurnableGestureIntent.horizontalDrag;
         _isDragging = true;
-        pageFlip.startUserTouch(point);
+        pageFlip.startUserTouch(_initialTouchPoint!);
         pageFlip.userMove(point, true);
         ensureAnimating();
       } else if (intent != TurnableGestureIntent.pending) {
@@ -939,13 +976,21 @@ class RenderTurnableBook extends RenderBox
 
     final point = model.Point(position.dx, position.dy);
 
+    // If another pointer is still active, keep the interaction in non-flip mode.
+    if (_activePointers.isNotEmpty) {
+      _gestureIntent = TurnableGestureIntent.pending;
+      _isDragging = false;
+      _initialTouchPoint = point;
+      _touchPoint = SwipeData(
+        point: point,
+        time: DateTime.now().millisecondsSinceEpoch,
+      );
+      return;
+    }
+
     if (_gestureIntent == TurnableGestureIntent.horizontalDrag && _isDragging) {
-      if (_touchPoint != null && _isValidSwipe(point)) {
-        _processSwipeGesture(point);
-      } else {
-        pageFlip.userStop(point, false);
-        ensureAnimating();
-      }
+      pageFlip.userStop(point, false);
+      ensureAnimating();
     }
 
     _resetGestureState();
@@ -956,35 +1001,7 @@ class RenderTurnableBook extends RenderBox
     _initialTouchPoint = null;
     _gestureIntent = TurnableGestureIntent.idle;
     _touchPoint = null;
-    if (_activePointers.isEmpty) {
-      _activePointers.clear();
-    }
-  }
-
-  bool _isValidSwipe(model.Point point) {
-    if (_touchPoint == null) return false;
-    final dx = point.x - _touchPoint!.point.x;
-    final distY = (point.y - _touchPoint!.point.y).abs();
-    final timeDelta = DateTime.now().millisecondsSinceEpoch - _touchPoint!.time;
-    return dx.abs() > _swipeDistance &&
-        distY < _swipeDistance * 2 &&
-        timeDelta < _swipeTimeout;
-  }
-
-  void _processSwipeGesture(model.Point point) {
-    final dx = point.x - _touchPoint!.point.x;
-    final rect = getRect();
-    final halfHeight = rect.height * 0.5;
-    final corner = _touchPoint!.point.y < halfHeight
-        ? FlipCorner.top
-        : FlipCorner.bottom;
-    if (dx > 0) {
-      pageFlip.flipPrev(corner);
-    } else {
-      pageFlip.flipNext(corner);
-    }
-    // Ensure animation continues for swipe gesture
-    ensureAnimating();
+    _activePointers.clear();
   }
 
   void ensureAnimating() => _scheduleFrame();

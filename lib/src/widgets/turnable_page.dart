@@ -133,6 +133,7 @@ class TurnablePage extends StatelessWidget {
           aspectRatio: aspectRatio,
           onPageChanged: onPageChanged,
           pagesBoundaryIsEnabled: pagesBoundaryIsEnabled,
+          interactionEnabled: interactionEnabled,
           paperBoundaryDecoration: paperBoundaryDecoration,
         );
       },

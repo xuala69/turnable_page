@@ -34,28 +34,59 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
   static const String sampleAssetPath = 'assets/PDF32000_2008.pdf';
 
   late final PageFlipController controller;
+  late final Future<PdfDocument> _documentFuture;
+  PdfDocument? _document;
   final ValueNotifier<int> currentPageNotifier = ValueNotifier<int>(0);
+  bool _isZoomed = false;
 
   @override
   void initState() {
     super.initState();
     controller = PageFlipController();
+    _documentFuture = _loadDocument();
+  }
+
+  Future<PdfDocument> _loadDocument() async {
+    await pdfrxFlutterInitialize();
+    final document = await PdfDocument.openAsset(sampleAssetPath);
+    _document = document;
+    return document;
   }
 
   @override
   void dispose() {
     currentPageNotifier.dispose();
+    _document?.dispose();
     super.dispose();
   }
 
+  void _scheduleSetState() {
+    if (!mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  void _handleZoomChanged(bool zoomed) {
+    if (_isZoomed != zoomed) {
+      _isZoomed = zoomed;
+      _scheduleSetState();
+    }
+  }
+
   Widget buildPdfPage(PdfDocument document, int pageIndex) {
-    return ColoredBox(
-      color: Colors.white,
-      child: PdfPageView(
-        document: document,
-        pageNumber: pageIndex + 1,
-        alignment: Alignment.center,
-      ),
+    return ZoomablePdfPage(
+      key: ValueKey<int>(pageIndex),
+      document: document,
+      pageNumber: pageIndex + 1,
+      onZoomChanged: (zoomed) {
+        _handleZoomChanged(zoomed);
+      },
     );
   }
 
@@ -91,6 +122,13 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Text(
+                    _isZoomed ? 'Zoom: ON' : 'Zoom: OFF',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
                 ValueListenableBuilder<int>(
                   valueListenable: currentPageNotifier,
                   builder: (context, currentPage, child) {
@@ -104,11 +142,22 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
             ),
           ),
           Expanded(
-            child: PdfDocumentViewBuilder.asset(
-              sampleAssetPath,
-              builder: (context, document) {
-                if (document == null) {
+            child: FutureBuilder<PdfDocument>(
+              future: _documentFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Failed to load PDF: ${snapshot.error}'),
+                  );
+                }
+
+                final document = snapshot.data;
+                if (document == null) {
+                  return const Center(child: Text('Failed to load PDF'));
                 }
 
                 final totalPages = document.pages.length;
@@ -122,17 +171,26 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
                     controller: controller,
                     pageCount: totalPages,
                     pageViewMode: PageViewMode.single,
+                    interactionEnabled: !_isZoomed,
                     paperBoundaryDecoration: PaperBoundaryDecoration.modern,
                     settings: FlipSettings(
+                      startPageIndex: currentPageNotifier.value,
                       drawShadow: true,
                       flippingTime: 700,
-                      swipeDistance: 70,
-                      cornerTriggerAreaSize: 0.14,
+                      swipeDistance: 42,
+                      cornerTriggerAreaSize: 0.30,
                     ),
                     onPageChanged: (leftPageIndex, rightPageIndex) {
-                      currentPageNotifier.value = rightPageIndex >= 0
+                      final newPage = rightPageIndex >= 0
                           ? rightPageIndex
                           : leftPageIndex;
+
+                      currentPageNotifier.value = newPage;
+
+                      if (_isZoomed) {
+                        _isZoomed = false;
+                        _scheduleSetState();
+                      }
                     },
                     builder: (context, pageIndex, constraints) {
                       return buildPdfPage(document, pageIndex);
@@ -143,6 +201,89 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ZoomablePdfPage extends StatefulWidget {
+  const ZoomablePdfPage({
+    super.key,
+    required this.document,
+    required this.pageNumber,
+    required this.onZoomChanged,
+  });
+
+  final PdfDocument document;
+  final int pageNumber;
+  final ValueChanged<bool> onZoomChanged;
+
+  @override
+  State<ZoomablePdfPage> createState() => _ZoomablePdfPageState();
+}
+
+class _ZoomablePdfPageState extends State<ZoomablePdfPage> {
+  late final TransformationController _transformationController;
+  bool _isZoomed = false;
+  static const double _zoomThreshold = 1.01;
+  static const double _normalizeThreshold = 1.04;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+    _transformationController.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    if (_isZoomed) {
+      widget.onZoomChanged(false);
+      _isZoomed = false;
+    }
+    _transformationController.removeListener(_onTransformChanged);
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed =
+        _transformationController.value.getMaxScaleOnAxis() > _zoomThreshold;
+    if (zoomed == _isZoomed) {
+      return;
+    }
+    _isZoomed = zoomed;
+    widget.onZoomChanged(zoomed);
+  }
+
+  void _onInteractionEnd(ScaleEndDetails details) {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    if (scale <= _normalizeThreshold) {
+      _transformationController.value = Matrix4.identity();
+      if (_isZoomed) {
+        _isZoomed = false;
+        widget.onZoomChanged(false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.white,
+      child: InteractiveViewer(
+        transformationController: _transformationController,
+        minScale: 1.0,
+        maxScale: 4.0,
+        panEnabled: true,
+        scaleEnabled: true,
+        onInteractionEnd: _onInteractionEnd,
+        clipBehavior: Clip.hardEdge,
+        child: PdfPageView(
+          document: widget.document,
+          pageNumber: widget.pageNumber,
+          alignment: Alignment.center,
+        ),
       ),
     );
   }
