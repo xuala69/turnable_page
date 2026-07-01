@@ -74,7 +74,7 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
     if (totalPages == 0) {
       return const Center(child: Text('No pages found in PDF'));
     }
-
+    // final ratio = MediaQuery.of(context).size.aspectRatio;
     return Scaffold(
       body: TurnablePage(
         controller: controller,
@@ -85,9 +85,11 @@ class _PdfBookDemoPageState extends State<PdfBookDemoPage> {
         maxScale: 4.0,
         zoomThreshold: 1.01,
         zoomNormalizeThreshold: 1.04,
-        autoHideOverlays: true,
-        overlayVisibleDuration: const Duration(seconds: 2),
-        overlayAnimationDuration: const Duration(milliseconds: 280),
+        topOverlayAutoHide: true,
+        topControlsAutoHideDelay: const Duration(seconds: 2),
+        topOverlayAnimationDuration: const Duration(milliseconds: 220),
+        bottomOverlayAutoHide: false,
+        bottomOverlayAnimationDuration: const Duration(milliseconds: 320),
         paperBoundaryDecoration: PaperBoundaryDecoration.modern,
         settings: FlipSettings(
           startPageIndex: currentPageNotifier.value,

@@ -26,6 +26,7 @@ class TurnablePageView extends StatefulWidget {
   final double zoomThreshold;
   final double zoomNormalizeThreshold;
   final double doubleTapZoomScale;
+  final DoubleTapZoomAnchor doubleTapZoomAnchor;
 
   const TurnablePageView({
     super.key,
@@ -45,6 +46,7 @@ class TurnablePageView extends StatefulWidget {
     this.zoomThreshold = 1.01,
     this.zoomNormalizeThreshold = 1.04,
     required this.doubleTapZoomScale,
+    this.doubleTapZoomAnchor = DoubleTapZoomAnchor.tapPoint,
   });
 
   @override
@@ -183,6 +185,7 @@ class _TurnablePageViewState extends State<TurnablePageView> {
               zoomThreshold: widget.zoomThreshold,
               zoomNormalizeThreshold: widget.zoomNormalizeThreshold,
               doubleTapZoomScale: widget.doubleTapZoomScale,
+              doubleTapZoomAnchor: widget.doubleTapZoomAnchor,
               onZoomChanged: (zoomed) {
                 _handlePageZoomChanged(pageIndex: index, zoomed: zoomed);
               },
@@ -221,6 +224,7 @@ class _TurnableZoomWrapper extends StatefulWidget {
     required this.zoomThreshold,
     required this.zoomNormalizeThreshold,
     required this.doubleTapZoomScale,
+    required this.doubleTapZoomAnchor,
     required this.onZoomChanged,
   });
 
@@ -230,6 +234,7 @@ class _TurnableZoomWrapper extends StatefulWidget {
   final double zoomThreshold;
   final double zoomNormalizeThreshold;
   final double doubleTapZoomScale;
+  final DoubleTapZoomAnchor doubleTapZoomAnchor;
   final ValueChanged<bool> onZoomChanged;
 
   @override
@@ -293,6 +298,16 @@ class _TurnableZoomWrapperState extends State<_TurnableZoomWrapper> {
     final targetScale = widget.doubleTapZoomScale
         .clamp(widget.minScale, widget.maxScale)
         .toDouble();
+
+    if (widget.doubleTapZoomAnchor == DoubleTapZoomAnchor.pageCenter) {
+      _controller.value = Matrix4.diagonal3Values(
+        targetScale,
+        targetScale,
+        1.0,
+      );
+      return;
+    }
+
     final localPosition = _lastDoubleTapDown?.localPosition;
     if (localPosition == null) {
       _controller.value = Matrix4.diagonal3Values(

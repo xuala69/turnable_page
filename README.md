@@ -125,11 +125,23 @@ class _PdfBookViewerState extends State<PdfBookViewer> {
 
 - `topOverlay` and `bottomOverlay`
 - `autoHideOverlays`
-- `overlayVisibleDuration`
-- `overlayAnimationDuration`
-- `overlayAnimationBuilder` (optional custom transition)
+- `controlsAutoHideDelay`
+- `topOverlayAutoHide` / `bottomOverlayAutoHide`
+- `topControlsAutoHideDelay` / `bottomControlsAutoHideDelay`
+- `topOverlayAnimationDuration` / `bottomOverlayAnimationDuration`
+- `topOverlayAnimationBuilder` / `bottomOverlayAnimationBuilder`
+- `topOverlayAnimationCurve` / `bottomOverlayAnimationCurve`
 
-If `overlayAnimationBuilder` is not provided, a smooth fade + slide animation is used by default.
+If no custom animation builder is provided, a smooth fade + slide animation is used by default.
+
+### Double Tap Zoom
+
+When `enablePinchZoom` is on, double tap zoom is also available.
+
+- `doubleTapZoomScale` controls the zoom target.
+- `doubleTapZoomAnchor` controls whether zoom centers on the tapped point or the page center.
+
+The default behavior zooms from the tap point, which feels natural on mobile.
 
 ## Notes for PDF Apps
 
@@ -137,6 +149,7 @@ If `overlayAnimationBuilder` is not provided, a smooth fade + slide animation is
 - Provide stable keys when needed so expensive page widgets keep their state.
 - Use `PageFlipController` for external UI controls (next/prev/jump).
 - Built-in zoom (`enablePinchZoom`) automatically locks page-turn while zoomed and unlocks after scale normalizes.
+- Double-tap zoom can be configured independently from pinch zoom.
 
 ## Gesture Model (Recommended)
 

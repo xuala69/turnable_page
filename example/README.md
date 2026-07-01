@@ -8,9 +8,10 @@ be turned like a book.
 - Explicit `pdfrx` document loading in the example app
 - Rendering each page with `PdfPageView`
 - Using `TurnablePage` built-in pinch zoom support
+- Double-tap zoom with configurable target and anchor behavior
 - Programmatic navigation with `PageFlipController`
 - Smooth page flip with package-level gesture/animation handling
-- Package-level `topOverlay` / `bottomOverlay` with auto-hide
+- Package-level `topOverlay` / `bottomOverlay` with independent auto-hide settings
 
 ## Sample PDF
 
@@ -31,4 +32,4 @@ flutter run
 - The example initializes pdfrx and opens `PdfDocument` directly.
 - The loaded document is disposed in widget `dispose()`.
 - Zoom lock/unlock behavior is handled by `TurnablePage(enablePinchZoom: true)`.
-- Overlay auto-hide is handled by `TurnablePage(autoHideOverlays: true)`.
+- Overlay auto-hide is handled by the package-level overlay settings.
